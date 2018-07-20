@@ -11,7 +11,7 @@ const g = graph.traversal().withRemote(new DriverRemoteConnection(endpoint))
 ////
 
 const sampleVertices = async() => {
-  return g.V().limit(4).next()
+  return g.V().hasLabel('Session').values('Title').toList()
 }
 
 

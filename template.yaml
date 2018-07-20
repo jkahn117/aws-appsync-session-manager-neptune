@@ -11,7 +11,7 @@ Parameters:
   NeptuneInstanceClass:
     Type: String
     Default: db.r4.large
-
+    
 Mappings:
   SubnetConfig:
     VPC:
@@ -28,7 +28,23 @@ Mappings:
       CIDR: '10.0.4.0/24'
     Lambda2:
       CIDR: '10.0.5.0/24'
-    
+
+Globals:
+  Function:
+    Runtime: nodejs8.10
+    Handler: index.handler
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds:
+        - !Ref LambdaSubnet1
+        - !Ref LambdaSubnet2
+    Environment:
+      Variables:
+        #NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
+        NEPTUNE_ENDPOINT: aws-appsync-session-manager.cluster-ro-cryqwigx1epw.us-east-2.neptune.amazonaws.com
+        NEPTUNE_PORT: 8182
+      
 
 Resources:
   # ---- Amazon Neptune ----
@@ -109,21 +125,9 @@ Resources:
     DependsOn: NeptuneCluster
     Properties:
       CodeUri: stream/
-      Handler: index.handler
-      Runtime: nodejs8.10
       Description: Processes DynamoDB stream, writing to Neptune
       Policies:
         - VPCAccessPolicy: {}
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroup
-        SubnetIds:
-          - !Ref LambdaSubnet1
-          - !Ref LambdaSubnet2
-      Environment:
-        Variables:
-          NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
-          NEPTUNE_PORT: 8182
       Events:
         Stream:
           Type: DynamoDB
@@ -137,23 +141,11 @@ Resources:
   RecommendFromNeptuneFunction:
     Type: AWS::Serverless::Function
     DependsOn: NeptuneCluster
+    Policies:
+      - VPCAccessPolicy: {}
     Properties:
       CodeUri: recommend/
-      Handler: index.handler
-      Runtime: nodejs8.10
       Description: Recommends sessions using data in Amazon Neptune
-      Policies:
-        - VPCAccessPolicy: {}
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroup
-        SubnetIds:
-          - !Ref LambdaSubnet1
-          - !Ref LambdaSubnet2
-      Environment:
-        Variables:
-          NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
-          NEPTUNE_PORT: 8182
 
   
   LambdaSecurityGroup:
@@ -170,8 +162,7 @@ Resources:
       Tags:
         - Key: Project
           Value: !Ref ProjectName
-
-
+          
   # ---- Networking Resources ----
   # A VPC with two public subnets and two private
   # subnets along with an internet gateway.
@@ -190,7 +181,10 @@ Resources:
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs { Ref: 'AWS::Region' }]
+      AvailabilityZone: 
+        Fn::Select: 
+        - 0
+        - Fn::GetAZs: !Ref AWS::Region
       VpcId: !Ref VPC
       CidrBlock:  !FindInMap ['SubnetConfig', 'Private1', 'CIDR']
       Tags:
@@ -202,7 +196,10 @@ Resources:
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs { Ref: 'AWS::Region' }]
+      AvailabilityZone: 
+        Fn::Select: 
+        - 1
+        - Fn::GetAZs: !Ref AWS::Region
       VpcId: !Ref VPC
       CidrBlock:  !FindInMap ['SubnetConfig', 'Private2', 'CIDR']
       Tags:
@@ -214,7 +211,10 @@ Resources:
   LambdaSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs { Ref: 'AWS::Region' }]
+      AvailabilityZone: 
+        Fn::Select: 
+        - 0
+        - Fn::GetAZs: !Ref AWS::Region
       VpcId: !Ref VPC
       CidrBlock:  !FindInMap ['SubnetConfig', 'Lambda1', 'CIDR']
       Tags:
@@ -226,7 +226,10 @@ Resources:
   LambdaSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select [1, !GetAZs { Ref: 'AWS::Region' }]
+      AvailabilityZone: 
+        Fn::Select: 
+        - 1
+        - Fn::GetAZs: !Ref AWS::Region
       VpcId: !Ref VPC
       CidrBlock:  !FindInMap ['SubnetConfig', 'Lambda2', 'CIDR']
       Tags:
@@ -253,7 +256,10 @@ Resources:
   PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Select [0, !GetAZs { Ref: 'AWS::Region' }]
+      AvailabilityZone: 
+        Fn::Select: 
+        - 0
+        - Fn::GetAZs: !Ref AWS::Region
       VpcId: !Ref VPC
       CidrBlock:  !FindInMap ['SubnetConfig', 'Public1', 'CIDR']
       MapPublicIpOnLaunch: true
@@ -300,8 +306,6 @@ Resources:
       Name: !Ref ProjectName
       SubnetId: !Ref PublicSubnet1
 
-  
-
 #### OUTPUTS ####
 Outputs:
   VpcId:
@@ -315,5 +319,3 @@ Outputs:
   NeptuneClusterReadEndpoint:
     Description: Read endpoint for Neptune Cluster
     Value: !GetAtt NeptuneCluster.ReadEndpoint
-
-  
