@@ -245,8 +245,64 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet1
+
+  #---- Dev ----
+  # For development purposes, including a public subtnet
+  # and internet gateway. We will also build a Cloud9
+  # instance.
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs { Ref: 'AWS::Region' }]
+      VpcId: !Ref VPC
+      CidrBlock:  !FindInMap ['SubnetConfig', 'Public1', 'CIDR']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-public-subnet-1"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachement:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'VPC'
+      InternetGatewayId: !Ref 'InternetGateway'
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachement
+    Properties:
+      RouteTableId: !Ref 'PublicRouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Cloud9Env:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      Description: !Sub "Cloud9 Environment to developer ${ProjectName}"
+      AutomaticStopTimeMinutes: 30
+      InstanceType: t2.small
+      Name: !Ref ProjectName
+      SubnetId: !Ref PublicSubnet1
+
   
 
+#### OUTPUTS ####
 Outputs:
   VpcId:
     Description: VPC ID
