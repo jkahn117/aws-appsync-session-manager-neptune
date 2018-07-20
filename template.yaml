@@ -1,0 +1,263 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: AWS AppSync Session Manager Recommendations - powered by Amazon Neptune
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: aws-appsync-session-manager
+
+  NeptuneInstanceClass:
+    Type: String
+    Default: db.r4.large
+
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: '10.0.0.0/16'
+    Public1:
+      CIDR: '10.0.0.0/24'
+    Public2:
+      CIDR: '10.0.1.0/24'
+    Private1:
+      CIDR: '10.0.2.0/24'
+    Private2:
+      CIDR: '10.0.3.0/24'
+    Lambda1:
+      CIDR: '10.0.4.0/24'
+    Lambda2:
+      CIDR: '10.0.5.0/24'
+    
+
+Resources:
+  # ---- Amazon Neptune ----
+  # Two instance Amazon Neptune cluster, using default
+  # parameter groups
+  NeptuneCluster:
+    Type: AWS::Neptune::DBCluster
+    Properties:
+      DBClusterIdentifier: !Ref ProjectName
+      DBSubnetGroupName: !Ref NeptuneSubnets
+      VpcSecurityGroupIds:
+        - !Ref NeptuneSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-neptune-cluster"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NeptuneInstance1:
+    Type: AWS::Neptune::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref NeptuneCluster
+      DBInstanceClass: !Ref NeptuneInstanceClass
+      DBInstanceIdentifier: !Sub "${ProjectName}-neptune-1"
+      DBSubnetGroupName: !Ref NeptuneSubnets
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-neptune-instance-1"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NeptuneInstance2:
+    Type: AWS::Neptune::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref NeptuneCluster
+      DBInstanceClass: !Ref NeptuneInstanceClass
+      DBInstanceIdentifier: !Sub "${ProjectName}-neptune-2"
+      DBSubnetGroupName: !Ref NeptuneSubnets
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-neptune-instance-2"
+        - Key: Project
+          Value: !Ref ProjectName
+  
+  NeptuneSubnets:
+    Type: AWS::Neptune::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "${ProjectName} Subnet Group"
+      DBSubnetGroupName: !Sub "${ProjectName}-subnet-group"
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-neptune-subnet-group"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  NeptuneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: LambdaSecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-neptune-security-group"
+      GroupDescription: Allow access to Amazon Neptune from Lambda
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8182
+          ToPort: 8182
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # --- Lambda ----
+  PublishToNeptuneFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: NeptuneCluster
+    Properties:
+      CodeUri: stream/
+      Handler: index.handler
+      Runtime: nodejs8.10
+      Description: Processes DynamoDB stream, writing to Neptune
+      Policies:
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref LambdaSubnet1
+          - !Ref LambdaSubnet2
+      Environment:
+        Variables:
+          NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
+          NEPTUNE_PORT: 8182
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream:
+              Fn::ImportValue:
+                !Sub "${ProjectName}-sessions-stream"
+            StartingPosition: LATEST
+            BatchSize: 10
+
+  RecommendFromNeptuneFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: NeptuneCluster
+    Properties:
+      CodeUri: recommend/
+      Handler: index.handler
+      Runtime: nodejs8.10
+      Description: Recommends sessions using data in Amazon Neptune
+      Policies:
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref LambdaSubnet1
+          - !Ref LambdaSubnet2
+      Environment:
+        Variables:
+          NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
+          NEPTUNE_PORT: 8182
+
+  
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-lambda-security-group"
+      GroupDescription: Access from AWS Lambda to Amazon Neptune
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: !FindInMap ['SubnetConfig', 'VPC', 'CIDR']
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+
+
+  # ---- Networking Resources ----
+  # A VPC with two public subnets and two private
+  # subnets along with an internet gateway.
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: !FindInMap ['SubnetConfig', 'VPC', 'CIDR']
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-vpc"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs { Ref: 'AWS::Region' }]
+      VpcId: !Ref VPC
+      CidrBlock:  !FindInMap ['SubnetConfig', 'Private1', 'CIDR']
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-private-subnet-1"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs { Ref: 'AWS::Region' }]
+      VpcId: !Ref VPC
+      CidrBlock:  !FindInMap ['SubnetConfig', 'Private2', 'CIDR']
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-private-subnet-2"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  LambdaSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs { Ref: 'AWS::Region' }]
+      VpcId: !Ref VPC
+      CidrBlock:  !FindInMap ['SubnetConfig', 'Lambda1', 'CIDR']
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-lambda-subnet-1"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  LambdaSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs { Ref: 'AWS::Region' }]
+      VpcId: !Ref VPC
+      CidrBlock:  !FindInMap ['SubnetConfig', 'Lambda2', 'CIDR']
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-lambda-subnet-2"
+        - Key: Project
+          Value: !Ref ProjectName
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteTable1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+  
+
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+
+  NeptuneClusterEndpoint:
+    Description: Endpoint for Neptune Cluster
+    Value: !GetAtt NeptuneCluster.Endpoint
+
+  NeptuneClusterReadEndpoint:
+    Description: Read endpoint for Neptune Cluster
+    Value: !GetAtt NeptuneCluster.ReadEndpoint
+
+  

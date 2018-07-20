@@ -1,0 +1,14 @@
+{
+  "name": "aws-appsync-session-manager-recommend",
+  "version": "1.0.0",
+  "description": "Reads from Amazon Neptune to recommend sessions for user",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jkahn@",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "gremlin": "^3.2.9"
+  }
+}

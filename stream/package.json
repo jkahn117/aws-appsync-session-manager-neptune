@@ -1,0 +1,11 @@
+{
+  "name": "aws-appsync-session-manager-publish-to-neptune",
+  "version": "1.0.0",
+  "description": "Reads from DynamoDB stream and publishes to Amazon Neptune",
+  "main": "index.js",
+  "author": "jkahn@",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "gremlin": "^3.2.9"
+  }
+}
