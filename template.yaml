@@ -41,8 +41,7 @@ Globals:
         - !Ref LambdaSubnet2
     Environment:
       Variables:
-        #NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
-        NEPTUNE_ENDPOINT: aws-appsync-session-manager.cluster-ro-cryqwigx1epw.us-east-2.neptune.amazonaws.com
+        NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
         NEPTUNE_PORT: 8182
       
 
