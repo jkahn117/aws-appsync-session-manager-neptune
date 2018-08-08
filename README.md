@@ -32,15 +32,15 @@ https://docs.aws.amazon.com/neptune/latest/userguide/access-graph-gremlin-consol
 
 ``` gremlin
 
-gremlin> g.addV('User').property('name', 'Josh').
-           addV('User').property('name', 'Naomi').
-           addV('User').property('name', 'Audrey').iterate()
+gremlin> g.addV('User').property('name', 'Josh').property('userId', '1').
+           addV('User').property('name', 'Naomi').property('userId', '2').
+           addV('User').property('name', 'Audrey').property('userId', '3').iterate()
            
-gremlin> g.addV('Session').property('title', 'Session #1').
-           addV('Session').property('title', 'Session #2').
-           addV('Session').property('title', 'Session #3').
-           addV('Session').property('title', 'Session #4').
-           addV('Session').property('title', 'Session #5').iterate()
+gremlin> g.addV('Session').property('title', 'Session #1').property('sessionId', '1').
+           addV('Session').property('title', 'Session #2').property('sessionId', '2').
+           addV('Session').property('title', 'Session #3').property('sessionId', '3').
+           addV('Session').property('title', 'Session #4').property('sessionId', '4').
+           addV('Session').property('title', 'Session #5').property('sessionId', '5').iterate()
          
 gremlin> g.V().has('User', 'name', 'Josh').as('p').
            V().has('Session', 'title', 'Session #1').addE('registered').from('p').

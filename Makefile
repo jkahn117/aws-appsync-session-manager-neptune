@@ -28,7 +28,7 @@ deploy:
 	      --region $(AWS_REGION) \
 	      --capabilities CAPABILITY_NAMED_IAM \
 	      --stack-name $(AWS_STACK_NAME) \
-	      --force-upload
+	      # --force-upload
 
 describe:
 	@ aws cloudformation describe-stacks \

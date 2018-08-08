@@ -41,7 +41,8 @@ Globals:
         - !Ref LambdaSubnet2
     Environment:
       Variables:
-        NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
+        NEPTUNE_ENDPOINT: aws-appsync-session-manager.cluster-cryqwigx1epw.us-east-2.neptune.amazonaws.com
+        # NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
         NEPTUNE_PORT: 8182
       
 
@@ -119,12 +120,12 @@ Resources:
           Value: !Ref ProjectName
 
   # --- Lambda ----
-  PublishToNeptuneFunction:
+  SessionStreamFunction:
     Type: AWS::Serverless::Function
     DependsOn: NeptuneCluster
     Properties:
-      CodeUri: stream/
-      Description: Processes DynamoDB stream, writing to Neptune
+      CodeUri: session-stream/
+      Description: Processes DynamoDB stream on sessions, writes to Neptune
       Policies:
         - VPCAccessPolicy: {}
       Events:
@@ -136,15 +137,38 @@ Resources:
                 !Sub "${ProjectName}-sessions-stream"
             StartingPosition: LATEST
             BatchSize: 10
-
-  RecommendFromNeptuneFunction:
+  
+  ScheduleStreamFunction:
     Type: AWS::Serverless::Function
     DependsOn: NeptuneCluster
-    Policies:
-      - VPCAccessPolicy: {}
+    Properties:
+      CodeUri: schedule-stream
+      Description: Processes DynamoDB stream of user schedule, writes to Neptune
+      Policies:
+        - VPCAccessPolicy: {}
+      Environment:
+        Variables:
+          COGNITO_USER_POOL_ID:
+            Fn::ImportValue:
+              !Sub "${ProjectName}-user-pool-id"
+      Events:
+        Stream:
+          Type: DynamoDB
+          Properties:
+            Stream:
+              Fn::ImportValue:
+                !Sub "${ProjectName}-user-schedule-stream"
+            StartingPosition: LATEST
+            BatchSize: 10
+
+  RecommendSessionsFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: NeptuneCluster
     Properties:
       CodeUri: recommend/
       Description: Recommends sessions using data in Amazon Neptune
+      Policies:
+        - VPCAccessPolicy: {}
 
   
   LambdaSecurityGroup:

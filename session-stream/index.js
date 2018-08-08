@@ -14,7 +14,7 @@ const addSessionToGraph = async(sessionId, record) => {
   console.log(`Adding session ${record.dynamodb.NewImage.Title.S} [${sessionId}]`)
 
   return g.addV('Session')
-    .property('id', sessionId)
+    .property('sessionId', sessionId)
     .property('title', record.dynamodb.NewImage.Title.S)
     .property('sessionType', record.dynamodb.NewImage.SessionType.S)
     .next()

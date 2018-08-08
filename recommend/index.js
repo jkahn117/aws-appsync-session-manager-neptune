@@ -18,7 +18,7 @@ const g = graph.traversal().withRemote(new DriverRemoteConnection(endpoint))
 // @see http://tinkerpop.apache.org/docs/current/recipes/#recommendation
 const recommendForUser = async(userId) => {
   return g.V()
-    .has('User', 'name', userId).as('user')
+    .has('User', 'userId', userId).as('user')
     .out('registered').aggregate('self')
     .in_('registered').where(P.neq('user'))
     .out('registered').where(P.without('self'))

@@ -1,5 +1,5 @@
 {
-  "name": "aws-appsync-session-manager-publish-to-neptune",
+  "name": "aws-appsync-session-manager-session-stream",
   "version": "1.0.0",
   "description": "Reads from DynamoDB stream and publishes to Amazon Neptune",
   "main": "index.js",
