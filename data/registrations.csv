@@ -1,0 +1,10 @@
+~id,~from,~to,~label
+e1,user1,session1,registered
+e2,user1,session2,registered
+e3,user1,session3,registered
+e4,user2,session1,registered
+e5,user2,session2,registered
+e6,user2,session9,registered
+e7,user2,session10,registered
+e8,user3,session3,registered
+e9,user3,session5,registered

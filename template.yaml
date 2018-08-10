@@ -48,39 +48,39 @@ Globals:
 
 Resources:
   # ---- AppSync ----
-  UserSessionRecommendationQueryResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId:
-        Fn::ImportValue:
-          !Sub "${ProjectName}-sessions-manager-api"
-      TypeName: Query
-      FieldName: userRecommendations
-      DataSourceName: !Ref UserRecommendationDataSource.Name
-      RequestMappingTemplate: |
-        {
-          "version": "2017-02-28",
-          "operation": "Invoke",
-          "payload": {
-            "userId": "${ctx.identity.sub}"
-          }
-        }
-      ResponseMappingTemplate: |
-        $util.toJson($ctx.result)
+  # UserSessionRecommendationQueryResolver:
+  #   Type: AWS::AppSync::Resolver
+  #   Properties:
+  #     ApiId:
+  #       Fn::ImportValue:
+  #         !Sub "${ProjectName}-sessions-manager-api"
+  #     TypeName: Query
+  #     FieldName: userRecommendations
+  #     DataSourceName: !Ref UserRecommendationDataSource.Name
+  #     RequestMappingTemplate: |
+  #       {
+  #         "version": "2017-02-28",
+  #         "operation": "Invoke",
+  #         "payload": {
+  #           "userId": "${ctx.identity.sub}"
+  #         }
+  #       }
+  #     ResponseMappingTemplate: |
+  #       $util.toJson($ctx.result)
 
-  UserRecommendationDataSource:
-    Type: AWS::AppSync::DataSource
-    Properties:
-      ApiId:
-        Fn::ImportValue:
-          !Sub "${ProjectName}-sessions-manager-api"
-      Description: AppSync data source for recommendation Lambda function
-      Type: AWS_LAMBDA
-      ServiceRoleArn:
-        Fn::ImportValue:
-          !Sub "${ProjectName}-appsync-service-role-arn"
-      LambdaConfig:
-        LambdaFunctionArn: !GetAtt RecommendSessionsFunction.Arn
+  # UserRecommendationDataSource:
+  #   Type: AWS::AppSync::DataSource
+  #   Properties:
+  #     ApiId:
+  #       Fn::ImportValue:
+  #         !Sub "${ProjectName}-sessions-manager-api"
+  #     Description: AppSync data source for recommendation Lambda function
+  #     Type: AWS_LAMBDA
+  #     ServiceRoleArn:
+  #       Fn::ImportValue:
+  #         !Sub "${ProjectName}-appsync-service-role-arn"
+  #     LambdaConfig:
+  #       LambdaFunctionArn: !GetAtt RecommendSessionsFunction.Arn
 
 
   # ---- Amazon Neptune ----
@@ -221,7 +221,7 @@ Resources:
       Tags:
         - Key: Project
           Value: !Ref ProjectName
-          
+
   # ---- Networking Resources ----
   # A VPC with two public subnets and two private
   # subnets along with an internet gateway.
@@ -297,6 +297,23 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
+  VpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      RouteTableIds:
+        - !Ref PrivateRouteTable
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:GetObject
+            Resource:
+              - !Sub "${SampleDataBucket.Arn}/*"
+
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -307,6 +324,36 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet1
+
+  # ---- Sample Data ----
+  SampleDataBucket:
+    Type: AWS::S3::Bucket
+
+  NeptuneDataLoaderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /session-manager/
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - rds.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: NeptuneDataLoaderPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:Get*"
+                  - "s3:List*"
+                Resource:
+                  - !GetAtt SampleDataBucket.Arn
+                  - !Sub "${SampleDataBucket.Arn}/*"
 
   #---- Dev ----
   # For development purposes, including a public subtnet
@@ -378,3 +425,11 @@ Outputs:
   NeptuneClusterReadEndpoint:
     Description: Read endpoint for Neptune Cluster
     Value: !GetAtt NeptuneCluster.ReadEndpoint
+  
+  SampleDataBucket:
+    Description: Name of the bucket to upload sample data to
+    Value: !Ref SampleDataBucket
+
+  SampleDataLoaderRole:
+    Description: ARN of Sample Data loader
+    Value: !GetAtt NeptuneDataLoaderRole.Arn

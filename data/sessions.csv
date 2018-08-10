@@ -1,0 +1,11 @@
+~id,title:String,sessionId:String,sessionType:String,~label
+session1,Advanced VPC Design and New Capabilities for Amazon VPC (NET305),BB0EF3A7-3E33-49CC-B148-4F13B47CEE00,Breakout,Session
+session2,Deep Dive on the Amazon Aurora PostgreSQL-compatible Edition (DAT402),A0439B4B-D359-4253-8C20-989BE39C0EE1,Breakout,Session
+session3,Serverless Architectural Patterns and Best Practices (ARC401),E9BD9376-D953-459A-B8CF-8406F2E3FA89,Breakout,Session
+session4,A Primer on Developing Software in the Cloud (DEV320),2062E3BF-81D3-4421-9AA1-AA50BAB8C80A,Breakout,Session
+session5,C5 Instances and the Evolution of Amazon EC2 Virtualization (CMP332),C516AA84-B0B1-4092-BFD5-D664D743992A,Breakout,Session
+session6,Serverless DevOps to the Rescue (SRV330),1A40A9E3-5DDD-42D7-B393-D7E10AAEA17F,Workshop,Session
+session7,AWS DeepLens workshop: Building Computer Vision Applications (MCL212),9CE14E39-8B3B-43BD-BEA8-EA08EBD997C6,Workshop,Session
+session8,Architecting Security and Governance Across a Multi-Account Strategy (SID331),0C17272F-B3B1-4956-8EBA-F2C806D74197,Workshop,Session
+session9,Use Amazon Lex to Build a Customer Service Chatbot in Your (DEM72),481BE0E0-DC48-4399-8885-CF4CB7D245AC,Breakout,Session
+session10,Analytics, Authentication and Data with JavaScript: AWS Amplify (MBL403),D079AA69-9CAE-4826-B88D-08FBAFDBD21E,Breakout,Session
