@@ -3,6 +3,14 @@ must have sam-cli installed
 https://github.com/apache/tinkerpop/tree/master/gremlin-javascript/src/main/javascript/gremlin-javascript/lib/process
 https://stackoverflow.com/questions/51374763/why-does-gremlin-javascript-use-from-mapping-instead-of-from
 
+
+## deployment
+
+* need to update graphql schema by hand, adding recommendations, else no easy way to change from this second project without the first becoming dependent on it (unless we just leave that query without a resolver)
+* after updating, then run cloudformation
+
+
+
 ## gremlin console
 
 https://docs.aws.amazon.com/neptune/latest/userguide/access-graph-gremlin-console.html

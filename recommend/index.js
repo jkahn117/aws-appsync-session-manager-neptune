@@ -36,8 +36,7 @@ const recommendForUser = async(userId) => {
  * expected event from AppSync:
  * 
  * {
- *   "userId": "XXXXX",
- *   "limit": 5
+ *   "userId": "XXXXX"
  * }
  */
 
