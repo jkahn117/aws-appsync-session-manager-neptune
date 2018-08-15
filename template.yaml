@@ -41,8 +41,8 @@ Globals:
         - !Ref LambdaSubnet2
     Environment:
       Variables:
-        NEPTUNE_ENDPOINT: aws-appsync-session-manager.cluster-cryqwigx1epw.us-east-2.neptune.amazonaws.com
-        # NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
+        #NEPTUNE_ENDPOINT: aws-appsync-session-manager.cluster-cryqwigx1epw.us-east-2.neptune.amazonaws.com
+        NEPTUNE_ENDPOINT: !GetAtt NeptuneCluster.Endpoint
         NEPTUNE_PORT: 8182
       
 
@@ -178,15 +178,10 @@ Resources:
     Type: AWS::Serverless::Function
     DependsOn: NeptuneCluster
     Properties:
-      CodeUri: schedule-stream
+      CodeUri: schedule-stream/
       Description: Processes DynamoDB stream of user schedule, writes to Neptune
       Policies:
         - VPCAccessPolicy: {}
-      Environment:
-        Variables:
-          COGNITO_USER_POOL_ID:
-            Fn::ImportValue:
-              !Sub "${ProjectName}-user-pool-id"
       Events:
         Stream:
           Type: DynamoDB

@@ -17,8 +17,8 @@ const addSessionToGraph = async(sessionId, record) => {
     .property('sessionId', sessionId)
     .property('title', record.dynamodb.NewImage.Title.S)
     .property('sessionType', record.dynamodb.NewImage.SessionType.S)
-    .property('startTime', record.dynamodb.NewImage.StartTime.N)
-    .property('endTime', record.dynamodb.NewImage.EndTime.N)
+    .property('startTime', record.dynamodb.NewImage.StartTime.S)
+    .property('endTime', record.dynamodb.NewImage.EndTime.S)
     .next()
 }
 
@@ -39,7 +39,7 @@ const removeSessionFromGraph = async(sessionId) => {
   console.log(`Removing session ${sessionId}`)
   
   return g.V(sessionId)
-    .remove()
+    .drop()
     .next()
 }
 
