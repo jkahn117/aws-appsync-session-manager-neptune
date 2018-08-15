@@ -17,6 +17,8 @@ const addSessionToGraph = async(sessionId, record) => {
     .property('sessionId', sessionId)
     .property('title', record.dynamodb.NewImage.Title.S)
     .property('sessionType', record.dynamodb.NewImage.SessionType.S)
+    .property('startTime', record.dynamodb.NewImage.StartTime.N)
+    .property('endTime', record.dynamodb.NewImage.EndTime.N)
     .next()
 }
 
@@ -27,6 +29,8 @@ const updateSessionInGraph = async(sessionId, record) => {
   return g.V(sessionId)
     .property('title', record.dynamodb.NewImage.Title.S)
     .property('sessionType', record.dynamodb.NewImage.SessionType.S)
+    .property('startTime', record.dynamodb.NewImage.StartTime.N)
+    .property('endTime', record.dynamodb.NewImage.EndTime.N)
     .next()
 }
 
@@ -35,14 +39,14 @@ const removeSessionFromGraph = async(sessionId) => {
   console.log(`Removing session ${sessionId}`)
   
   return g.V(sessionId)
-    .next()
     .remove()
+    .next()
 }
 
 ////
 exports.handler = async (event) => {
   for(let record of event.Records) {
-    // console.log(util.inspect(record, { depth: 5 }))
+    console.log(util.inspect(record, { depth: 5 }))
     let sessionId = record.dynamodb.Keys.SessionId.S
     console.log(`${record.eventName} record: ${sessionId}`)
     
