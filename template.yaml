@@ -48,39 +48,40 @@ Globals:
 
 Resources:
   # ---- AppSync ----
-  # UserSessionRecommendationQueryResolver:
-  #   Type: AWS::AppSync::Resolver
-  #   Properties:
-  #     ApiId:
-  #       Fn::ImportValue:
-  #         !Sub "${ProjectName}-sessions-manager-api"
-  #     TypeName: Query
-  #     FieldName: userRecommendations
-  #     DataSourceName: !Ref UserRecommendationDataSource.Name
-  #     RequestMappingTemplate: |
-  #       {
-  #         "version": "2017-02-28",
-  #         "operation": "Invoke",
-  #         "payload": {
-  #           "userId": "${ctx.identity.sub}"
-  #         }
-  #       }
-  #     ResponseMappingTemplate: |
-  #       $util.toJson($ctx.result)
+  UserSessionRecommendationQueryResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          !Sub "${ProjectName}-sessions-manager-api"
+      TypeName: Query
+      FieldName: recommendations
+      DataSourceName: !GetAtt UserRecommendationDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "userId": "$util.defaultIfNullOrEmpty($ctx.args.userId, $ctx.identity.sub)"
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result.sessions)
 
-  # UserRecommendationDataSource:
-  #   Type: AWS::AppSync::DataSource
-  #   Properties:
-  #     ApiId:
-  #       Fn::ImportValue:
-  #         !Sub "${ProjectName}-sessions-manager-api"
-  #     Description: AppSync data source for recommendation Lambda function
-  #     Type: AWS_LAMBDA
-  #     ServiceRoleArn:
-  #       Fn::ImportValue:
-  #         !Sub "${ProjectName}-appsync-service-role-arn"
-  #     LambdaConfig:
-  #       LambdaFunctionArn: !GetAtt RecommendSessionsFunction.Arn
+  UserRecommendationDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::ImportValue:
+          !Sub "${ProjectName}-sessions-manager-api"
+      Name: SessionManager_recommendation_function
+      Description: AppSync data source for recommendation Lambda function
+      Type: AWS_LAMBDA
+      ServiceRoleArn:
+        Fn::ImportValue:
+          !Sub "${ProjectName}-appsync-service-role-arn"
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt RecommendSessionsFunction.Arn
 
 
   # ---- Amazon Neptune ----
@@ -200,7 +201,6 @@ Resources:
       Description: Recommends sessions using data in Amazon Neptune
       Policies:
         - VPCAccessPolicy: {}
-
   
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -216,6 +216,21 @@ Resources:
       Tags:
         - Key: Project
           Value: !Ref ProjectName
+
+  AppSyncServicePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${ProjectName}-appsync-recommendation-function-policy"
+      Roles:
+        - Fn::ImportValue:
+            !Sub "${ProjectName}-appsync-service-role"
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - "lambda:InvokeFunction"
+            Resource: !GetAtt RecommendSessionsFunction.Arn
 
   # ---- Networking Resources ----
   # A VPC with two public subnets and two private
@@ -292,25 +307,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  VpcEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VPC
-      RouteTableIds:
-        - !Ref PrivateRouteTable
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: '*'
-            Action:
-              - s3:Get*
-              - s3:List*
-            Resource:
-              - !Sub "${SampleDataBucket.Arn}"
-              - !Sub "${SampleDataBucket.Arn}/*"
-
   PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -322,92 +318,111 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet1
 
-  # ---- Sample Data ----
-  SampleDataBucket:
-    Type: AWS::S3::Bucket
-
-  NeptuneDataLoaderRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /session-manager/
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - rds.amazonaws.com
-            Action:
-              - "sts:AssumeRole"
-      Policies:
-        - PolicyName: NeptuneDataLoaderPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - "s3:Get*"
-                  - "s3:List*"
-                Resource:
-                  - !GetAtt SampleDataBucket.Arn
-                  - !Sub "${SampleDataBucket.Arn}/*"
-
   #---- Dev ----
   # For development purposes, including a public subtnet
   # and internet gateway. We will also build a Cloud9
   # instance.
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone: 
-        Fn::Select: 
-        - 0
-        - Fn::GetAZs: !Ref AWS::Region
-      VpcId: !Ref VPC
-      CidrBlock:  !FindInMap ['SubnetConfig', 'Public1', 'CIDR']
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${ProjectName}-public-subnet-1"
-        - Key: Project
-          Value: !Ref ProjectName
+  # PublicSubnet1:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     AvailabilityZone: 
+  #       Fn::Select: 
+  #       - 0
+  #       - Fn::GetAZs: !Ref AWS::Region
+  #     VpcId: !Ref VPC
+  #     CidrBlock:  !FindInMap ['SubnetConfig', 'Public1', 'CIDR']
+  #     MapPublicIpOnLaunch: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub "${ProjectName}-public-subnet-1"
+  #       - Key: Project
+  #         Value: !Ref ProjectName
 
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
+  # InternetGateway:
+  #   Type: AWS::EC2::InternetGateway
 
-  GatewayAttachement:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref 'VPC'
-      InternetGatewayId: !Ref 'InternetGateway'
+  # GatewayAttachement:
+  #   Type: AWS::EC2::VPCGatewayAttachment
+  #   Properties:
+  #     VpcId: !Ref 'VPC'
+  #     InternetGatewayId: !Ref 'InternetGateway'
 
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref 'VPC'
+  # PublicRouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: !Ref 'VPC'
 
-  PublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: GatewayAttachement
-    Properties:
-      RouteTableId: !Ref 'PublicRouteTable'
-      DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref 'InternetGateway'
+  # PublicRoute:
+  #   Type: AWS::EC2::Route
+  #   DependsOn: GatewayAttachement
+  #   Properties:
+  #     RouteTableId: !Ref 'PublicRouteTable'
+  #     DestinationCidrBlock: '0.0.0.0/0'
+  #     GatewayId: !Ref 'InternetGateway'
 
-  PublicSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
+  # PublicSubnet1RouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: !Ref PublicSubnet1
+  #     RouteTableId: !Ref PublicRouteTable
 
-  Cloud9Env:
-    Type: AWS::Cloud9::EnvironmentEC2
-    Properties:
-      Description: !Sub "Cloud9 Environment to developer ${ProjectName}"
-      AutomaticStopTimeMinutes: 30
-      InstanceType: t2.small
-      Name: !Ref ProjectName
-      SubnetId: !Ref PublicSubnet1
+  # Cloud9Env:
+  #   Type: AWS::Cloud9::EnvironmentEC2
+  #   Properties:
+  #     Description: !Sub "Cloud9 Environment to developer ${ProjectName}"
+  #     AutomaticStopTimeMinutes: 30
+  #     InstanceType: t2.small
+  #     Name: !Ref ProjectName
+  #     SubnetId: !Ref PublicSubnet1
+
+  # ---- Sample Data ----
+  # SampleDataBucket:
+  #   Type: AWS::S3::Bucket
+
+  # NeptuneDataLoaderRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     Path: /session-manager/
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service:
+  #               - rds.amazonaws.com
+  #           Action:
+  #             - "sts:AssumeRole"
+  #     Policies:
+  #       - PolicyName: NeptuneDataLoaderPolicy
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - "s3:Get*"
+  #                 - "s3:List*"
+  #               Resource:
+  #                 - !GetAtt SampleDataBucket.Arn
+  #                 - !Sub "${SampleDataBucket.Arn}/*"
+
+  # VpcEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     VpcId: !Ref VPC
+  #     RouteTableIds:
+  #       - !Ref PrivateRouteTable
+  #     ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal: '*'
+  #           Action:
+  #             - s3:Get*
+  #             - s3:List*
+  #           Resource:
+  #             - !Sub "${SampleDataBucket.Arn}"
+  #             - !Sub "${SampleDataBucket.Arn}/*"
 
 #### OUTPUTS ####
 Outputs:
@@ -423,10 +438,10 @@ Outputs:
     Description: Read endpoint for Neptune Cluster
     Value: !GetAtt NeptuneCluster.ReadEndpoint
   
-  SampleDataBucket:
-    Description: Name of the bucket to upload sample data to
-    Value: !Ref SampleDataBucket
+  # SampleDataBucket:
+  #   Description: Name of the bucket to upload sample data to
+  #   Value: !Ref SampleDataBucket
 
-  SampleDataLoaderRole:
-    Description: ARN of Sample Data loader
-    Value: !GetAtt NeptuneDataLoaderRole.Arn
+  # SampleDataLoaderRole:
+  #   Description: ARN of Sample Data loader
+  #   Value: !GetAtt NeptuneDataLoaderRole.Arn
