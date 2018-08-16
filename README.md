@@ -72,8 +72,6 @@ Before we deploy new AWS resources, we first need to modify the existing Session
           --stack-name aws-appsync-session-manager-neptune
     ```
 
-**NEED TO ADD SESSION DATA TO NEPTUNE**
-
 7. Once complete, we can create sample data by "registering" several users for sessions already in the session catalog (see blog post for further details):
 
     ``` bash
@@ -130,20 +128,33 @@ Enter the following:
     recommendations(userId: "28AA3C63-2454-4B3A-825B-983746CE935A") {
             SessionId
             Title
-            StartTime
         }
     }
     ```
 
 The result of the latter query should be similar to the following:
 
-    ``` json
-    {
-        "data": {
-
-        }
-    }
-    ```
+``` json
+{
+  "data": {
+    "recommendations": [
+      {
+        "SessionId": "C516AA84-B0B1-4092-BFD5-D664D743992A",
+        "Title": "C5 Instances and the Evolution of Amazon EC2 Virtualization (CMP332)"
+      },
+      {
+        "SessionId": "A0439B4B-D359-4253-8C20-989BE39C0EE1",
+        "Title": "Deep Dive on the Amazon Aurora PostgreSQL-compatible Edition (DAT402)"
+      },
+      {
+        "SessionId": "481BE0E0-DC48-4399-8885-CF4CB7D245AC",
+        "Title": "Use Amazon Lex to Build a Customer Service Chatbot in Your (DEM72)"
+      },
+      ...
+    ]
+  }
+}
+```
 
 ## Cleaning Up
 
