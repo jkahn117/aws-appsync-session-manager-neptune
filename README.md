@@ -172,25 +172,26 @@ Amazon Neptune also provides the capability to [bulk load data](https://docs.aws
 
 After creating the bucket, copy the files included in the `data` directory:
 
-    ``` bash
-    $ aws s3 cp data s3://SAMPLE_DATA_BUCKET_NAME
-    ```
+``` bash
+$ aws s3 cp data s3://SAMPLE_DATA_BUCKET_NAME
+```
+
 Next, (add the IAM Role to your Neptune Cluster)[https://docs.aws.amazon.com/neptune/latest/userguide/bulk-load-tutorial-IAM.html#bulk-load-tutorial-IAM-add-role-cluster]. As of writing, this feature is not included in CloudFormation, but can be achieved via the AWS Conole of [AWS CLI](https://docs.aws.amazon.com/cli/latest/reference/neptune/add-role-to-db-cluster.html).
 
 In Cloud9, you can then load the data via `curl` (note: role ARN is inclued in the Outputs of the CloudFormation template):
 
-    ``` bash
-    $ curl -X POST \
-           -H 'Content-Type: application/json' \
-           http://your-neptune-endpoint:8182/loader -d '
-           { 
-             "source" : "s3://SAMPLE_DATA_BUCKET_NAME",
-             "format" : "format",
-             "iamRoleArn" : "arn:aws:iam::{YOUR_ACCOUNT_ID}:role/{YOUR_ROLE_NAME}",
-             "region" : "YOUR_REGION",
-             "failOnError" : "FALSE"
-          }'
-    ```
+``` bash
+$ curl -X POST \
+        -H 'Content-Type: application/json' \
+        http://your-neptune-endpoint:8182/loader -d '
+        { 
+            "source" : "s3://SAMPLE_DATA_BUCKET_NAME",
+            "format" : "format",
+            "iamRoleArn" : "arn:aws:iam::{YOUR_ACCOUNT_ID}:role/{YOUR_ROLE_NAME}",
+            "region" : "YOUR_REGION",
+            "failOnError" : "FALSE"
+        }'
+```
 
 This project generally leverages DynamoDB Streams and Lambda functions to load data to Neptune, but bulk loading can be helpful in other scenarios.
 
