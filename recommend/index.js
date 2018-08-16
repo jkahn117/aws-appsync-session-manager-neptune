@@ -43,7 +43,8 @@ const buildSessionFrom = (recommendation) => {
   let session = {}
   let match = null
   while ((match = parser.exec(recommendation)) !== null) {
-    session[match[1]] = match[2]
+    let key = match[1].replace(/^\w/, c => c.toUpperCase())
+    session[key] = match[2]
   }
   
   console.log(session)
@@ -67,12 +68,11 @@ exports.handler = async (event) => {
     for (let recommendation of Object.keys(recommendations.value)) {
       sessions.push(buildSessionFrom(recommendation))
     }
-    
   } catch (e) {
     console.error(`[ERROR] ${e.message}`)
     console.log(JSON.stringify(e))
-    error = e.message
+    return { error: e.message }
   }
   
-  return { error: error, sessions: sessions }
+  return { sessions: sessions }
 }
